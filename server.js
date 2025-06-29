@@ -4,9 +4,30 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const routes = require("./routes");
 const { Attendance } = require("./models");
+const cron = require("node-cron");
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  "https://nxtwave-frontend-eight.vercel.app",
+  "http://localhost:3000",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `CORS policy does not allow access from origin ${origin}`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 // Connect MongoDB
@@ -17,9 +38,7 @@ mongoose
 
 app.use("/api", routes);
 
-const cron = require("node-cron");
-
-// Run every day at 2:00 AM server time
+// Daily cleanup cron job
 cron.schedule("0 2 * * *", async () => {
   try {
     const cutoffDate = new Date();
