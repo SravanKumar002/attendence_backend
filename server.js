@@ -10,7 +10,7 @@ const app = express();
 
 const allowedOrigins = [
   "https://nxtwave-frontend-eight.vercel.app",
-  "http://localhost:3000",
+  "http://localhost:3001",
 ];
 
 app.use(

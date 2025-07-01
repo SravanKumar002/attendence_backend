@@ -192,7 +192,7 @@ router.post(
             parseFloat(office.lng)
           );
 
-          if (dist <= 100) {
+          if (dist <= 300) {
             distance = dist;
             withinRange = true;
             break;
@@ -202,7 +202,7 @@ router.post(
         if (!withinRange) {
           return res
             .status(400)
-            .json({ error: "Not within 100 meters of office" });
+            .json({ error: "Not within 300 meters of office" });
         }
 
         location = {
