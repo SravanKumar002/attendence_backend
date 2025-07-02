@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
@@ -93,6 +92,60 @@ router.post(
     } catch (error) {
       console.error("Register error:", error);
       res.status(500).json({ error: "Server error during registration" });
+    }
+  }
+);
+
+// Batch register route
+router.post(
+  "/batch-register",
+  [
+    body("*.employeeId").notEmpty(),
+    body("*.name").notEmpty(),
+    body("*.password").isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const employees = req.body;
+      const results = [];
+
+      for (const emp of employees) {
+        const existing = await Employee.findOne({ employeeId: emp.employeeId });
+        if (existing) {
+          results.push({
+            employeeId: emp.employeeId,
+            status: "failed",
+            error: "Employee ID already exists",
+          });
+          continue;
+        }
+
+        const hashed = await bcrypt.hash(emp.password, 10);
+        const employee = new Employee({
+          employeeId: emp.employeeId,
+          name: emp.name,
+          password: hashed,
+          department: emp.department || "",
+          position: emp.position || "",
+        });
+
+        await employee.save();
+        results.push({
+          employeeId: emp.employeeId,
+          status: "success",
+          employee: employee,
+        });
+      }
+
+      res.status(201).json(results);
+    } catch (error) {
+      console.error("Batch register error:", error);
+      res.status(500).json({ error: "Server error during batch registration" });
     }
   }
 );
@@ -210,10 +263,9 @@ router.post(
           coordinates: [longitude, latitude],
         };
       } else {
-        // Default location for other statuses
         location = {
           type: "Point",
-          coordinates: [78.486671, 17.385044],
+          coordinates: [78.486671, 17.385044], // Default Hyderabad coordinates
         };
       }
 
@@ -291,7 +343,7 @@ router.post("/admin/login", async (req, res) => {
   }
 });
 
-// Admin get all attendance with optional date filter (defaults to today)
+// Admin get all attendance with optional date filter
 router.get("/admin/attendance", authenticate, async (req, res) => {
   try {
     let { date } = req.query;
@@ -334,7 +386,10 @@ router.get("/admin/attendance", authenticate, async (req, res) => {
           checkInTime: 1,
           status: 1,
           distance: 1,
+          notes: 1,
           employeeName: "$employeeDetails.name",
+          department: "$employeeDetails.department",
+          position: "$employeeDetails.position",
         },
       },
       { $sort: { checkInTime: -1 } },
